@@ -14,6 +14,7 @@ use Shared\Persistence\GenericReadRepository;
 
 final class DeletionService
 {
+    // REVIEW: хрупко при любом новом параметре, все места придётся править синхронно. Лучше обернуть в класс.
     /** @var array<string, list<array{0:string,1:string,2:bool,3:?string,4:?string,5:?string,6:?string}>> parentFqcn => [[childFqcn, field, isBlocking, joinTable, joinColumn, inverseJoinColumn, cascade], ...] */
     private ?array $map = null;
     private array $metadataCache = [];
@@ -25,6 +26,7 @@ final class DeletionService
     {
     }
 
+    // REVIEW: array_merge трёх групп теряет информацию почему нельзя удалить проще отдать RelationsDto целиком.
     public function canDelete(object $object): CanDeleteDto
     {
         $relations = $this->analyze($object);
@@ -71,6 +73,10 @@ final class DeletionService
         );
     }
 
+    /*
+     * REVIEW: на первый вызов в процессе сканирует reflection по всем сущностям приложения (getAllMetadata).
+     * При большом числе сущностей может быть задержка первого запроса - можно вынести в кэш.
+     */
     private function ensureMap(): void
     {
         if ($this->map !== null) {
@@ -273,6 +279,7 @@ final class DeletionService
                     $ids[] = $this->finder->getId($child);
                 }
             } else {
+                // REVIEW: Лучше получать только id, так как остальные данные не используютя. Нужен finder->findIdsByAssociation(...).
                 // Прямая ссылка: фильтрация по scalar FK у ребенка
                 $children = $this->finder->findByAssociation($childClass, $field, $object);
                 foreach ($children as $child) {

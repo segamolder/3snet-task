@@ -6,6 +6,10 @@ namespace Shared\Deletion\Middleware;
 
 interface DeletionMiddlewareInterface
 {
+    /*
+     * REVIEW: supports нигде не вызывается, а LoggingDeletionMiddleware
+     * всегда возвращает true. Либо начать фильтровать по нему, либо убрать.
+     */
     public function supports(string $entityClass): bool;
 
     /**

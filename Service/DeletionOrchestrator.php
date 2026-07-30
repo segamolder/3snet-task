@@ -30,6 +30,7 @@ final class DeletionOrchestrator
         $relations = $this->plan($root);
         $plan = $this->buildOrderedPlan($root, $relations);
 
+        // REVIEW: after* уведомления идут внутри транзакции, after* нужно вызывать после commit.
         $this->em->wrapInTransaction(function () use ($plan, $root, $dryRun): void {
             // 1) Detach
             foreach ($plan->detach as $rel) {
@@ -86,6 +87,8 @@ final class DeletionOrchestrator
      * @param object                                                                                                                             $parent
      * @param RelationsDto                                                                                                                       $relations
      */
+    // REVIEW: нет отслеживания посещённых (class,id) может быть цикл (A->B и B->A) и уйдёт
+    // в бесконечную рекурсию
     private function buildRecursive(object $parent, RelationsDto $relations, array &$deleteMap, array &$detach): void
     {
         // 1) Detach текущего уровня (по карте правил)
@@ -153,6 +156,10 @@ final class DeletionOrchestrator
         return null;
     }
 
+    /**
+     * REVIEW: catch (Throwable) {} глушит вообще все исключения
+     * из middleware без логирования, если что-то упадёт, никто не узнает.
+     */
     private function notify(string $method, mixed ...$args): void
     {
         foreach ($this->middlewares as $mw) {
@@ -176,6 +183,10 @@ final class DeletionOrchestrator
     /**
      * @param array<int|string> $ids
      * @param string            $entityClass
+     */
+    /*
+     * REVIEW: bulk-delete игнорирует preRemove/postRemove, orphanRemoval, ORM identity map/кэш. Если на
+     * сущности например есть soft-delete - он не отработает. можно делать remove()+flush() чанками.
      */
     private function deleteByIds(string $entityClass, array $ids, string $field): void
     {
